@@ -1,0 +1,48 @@
+name: Run daily swing analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_id:
+        description: 'Optional user id to analyze, e.g. u001. Leave blank to run all active users.'
+        required: false
+        default: ''
+  schedule:
+    # 16:30 JST = 07:30 UTC. Run every day; the batch uses latest available market data.
+    - cron: '30 7 * * *'
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -e .
+      - name: Debug JQUANTS_API_KEY
+        env:
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+        run: |
+          python -c "import os; k=os.getenv('JQUANTS_API_KEY',''); print('JQUANTS_API_KEY length:', len(k))"
+      - name: Run swing analysis
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JQUANTS_API_KEY: ${{ secrets.JQUANTS_API_KEY }}
+          ENABLE_DIVIDEND_METRICS: ${{ vars.ENABLE_DIVIDEND_METRICS }}
+          DIVIDEND_SCORE_THRESHOLD: ${{ vars.DIVIDEND_SCORE_THRESHOLD }}
+          DIVIDEND_MAX_AGE_DAYS: ${{ vars.DIVIDEND_MAX_AGE_DAYS }}
+          DIVIDEND_MAX_CHECKS: ${{ vars.DIVIDEND_MAX_CHECKS }}
+          DIVIDEND_REQUEST_SLEEP_SEC: ${{ vars.DIVIDEND_REQUEST_SLEEP_SEC }}
+          TARGET_USER_ID: ${{ github.event.inputs.user_id }}
+        run: |
+          if [ -n "$TARGET_USER_ID" ]; then
+            python -m swing_core.cli run-user --user-id "$TARGET_USER_ID"
+          else
+            python -m swing_core.cli run-all
+          fi
