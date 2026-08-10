@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
+import { apiAppUser } from '../../../../lib/auth';
 
 const FORBIDDEN_TAG_WORDS = ['損切り', '利確', '目標株価', 'エントリー', '推奨', '買い候補', '急騰候補', '有望株'];
 const FORBIDDEN_METRIC_KEYS = new Set(['stop_loss_reference', 'stop_loss_distance_pct', 'take_profit_20pct', 'rr_stop_candidate', 'rr_target_candidate', 'rr2_entry_price', 'target_price']);
@@ -18,6 +19,9 @@ function sanitizeRow(row: any) {
 
 export async function GET(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
+  const actor = await apiAppUser();
+  if (!actor) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (actor.id !== userId && actor.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const supabase = supabaseAdmin();
 
   const runs = await supabase

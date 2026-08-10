@@ -11,6 +11,8 @@ import pandas as pd
 from .data import WatchItem, fetch_daily_prices, normalize_code
 from .indicators import add_daily_indicators, add_weekly_indicators, to_weekly
 
+# Production compatibility contract. Change this only with an explicit scoring migration.
+SCORING_VERSION = "v2_26_conditions_202606"
 # スコア条件v2: ⑦は減点条件として復活。
 SCORE_POINTS = {
     "c01": 1, "c02": 2, "c03": 1, "c04": 2, "c05": 2,
@@ -21,6 +23,13 @@ SCORE_POINTS = {
 }
 HIGH_POINT_KEYS = {k for k, v in SCORE_POINTS.items() if v >= 4}
 MAX_SCORE = sum(v for v in SCORE_POINTS.values() if v > 0)
+
+
+def score_from_conditions(conditions: dict[str, bool]) -> tuple[int, int]:
+    """Pure scoring boundary used by production code and compatibility tests."""
+    score = sum(SCORE_POINTS.get(key, 0) for key, ok in conditions.items() if ok)
+    count = sum(1 for key, ok in conditions.items() if ok and SCORE_POINTS.get(key, 0) > 0)
+    return int(score), int(count)
 
 # 管理者向け: 26条件をカテゴリ別に集計する。
 SCORE_GROUPS = {
@@ -855,8 +864,7 @@ def _score_conditions_from_frames(d: pd.DataFrame, w: pd.DataFrame) -> dict[str,
         "c26": bool(twist.get("ok")) and bool(daily_10d_high.get("ok")),
     }
     conditions = {k: bool(v) if not pd.isna(v) else False for k, v in conditions.items()}
-    score = sum(SCORE_POINTS.get(k, 0) for k, ok in conditions.items() if ok)
-    condition_count = sum(1 for k, ok in conditions.items() if ok and SCORE_POINTS.get(k, 0) > 0)
+    score, condition_count = score_from_conditions(conditions)
     failed_high_numbers = " / ".join(k[1:] for k in sorted(HIGH_POINT_KEYS) if not conditions.get(k))
     detail_metrics = {
         "score_version": "v2_26_conditions_202606",

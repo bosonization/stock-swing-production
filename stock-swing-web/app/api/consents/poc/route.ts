@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
+import { createHash } from 'crypto';
+import { apiAppUser } from '../../../../lib/auth';
 
 const CONSENT_TYPE = 'poc_terms';
 const DEFAULT_VERSION = 'poc_terms_v1';
@@ -20,20 +22,23 @@ export async function POST(req: Request) {
   const returnPath = String(body.returnPath || `/u/${encodeURIComponent(userId)}`).trim();
 
   if (!userId || !agreed) return NextResponse.json({ error: 'consent is required' }, { status: 400 });
+  const actor = await apiAppUser();
+  if (!actor) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (actor.id !== userId && actor.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const h = await headers();
   const userAgent = h.get('user-agent') || null;
   const ipAddress = h.get('x-forwarded-for')?.split(',')[0]?.trim() || h.get('x-real-ip') || null;
 
   const supabase = supabaseAdmin();
-  const insert = await supabase.from('user_consents').insert({
+  const insert = await supabase.from('user_consents').upsert({
     user_id: userId,
     consent_type: CONSENT_TYPE,
     version,
     agreed_at: new Date().toISOString(),
     user_agent: userAgent,
-    ip_address: ipAddress,
-  });
+    ip_hash: ipAddress ? createHash('sha256').update(ipAddress).digest('hex') : null,
+  }, { onConflict: 'user_id,consent_type,version' });
   if (insert.error) return NextResponse.json({ error: insert.error.message }, { status: 500 });
 
   const redirectUrl = returnPath.startsWith('/') && !returnPath.startsWith('//') ? new URL(returnPath, req.url) : new URL(`/u/${encodeURIComponent(userId)}`, req.url);

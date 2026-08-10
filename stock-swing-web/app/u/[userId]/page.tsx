@@ -1,5 +1,5 @@
 import { supabaseAdmin } from '../../../lib/supabaseServer';
-import { validatePocAccess } from '../../../lib/pocAccess';
+import { authorizeUserId } from '../../../lib/auth';
 import Link from 'next/link';
 
 type ResultRow = {
@@ -592,7 +592,8 @@ function Section({ title, subtitle, rows, userId, isAdmin }: { title: string; su
 export default async function Dashboard({ params, searchParams }: { params: Promise<{ userId: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
   const { userId } = await params;
   const query = searchParams ? await searchParams : {};
-  const isAdmin = userId === ADMIN_USER_ID;
+  const signedIn = await authorizeUserId(userId);
+  const isAdmin = signedIn.role === 'admin';
 
   const returnQuery = new URLSearchParams();
   const queryUser = Array.isArray(query.user) ? query.user[0] : query.user;
@@ -601,31 +602,6 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
   if (queryKey) returnQuery.set('key', queryKey);
   const returnPath = `/u/${encodeURIComponent(userId)}${returnQuery.toString() ? `?${returnQuery.toString()}` : ''}`;
 
-  if (!isAdmin) {
-    const access = await validatePocAccess({ pathUserId: userId, queryUser: query.user, queryKey: query.key, path: `/u/${userId}` });
-    if (!access.allowed) {
-      return (
-        <>
-          <header className="hero premium-hero"><div className="eyebrow">PoC / Beta</div><h1>銘柄整理ダッシュボード</h1></header>
-          <main className="wrap premium-wrap">
-            <section className="section">
-              <p>現在、この検証用ページは利用できません。</p>
-            </section>
-          </main>
-        </>
-      );
-    }
-  }
-
-  const consentOk = await hasPocConsent(userId);
-  if (!consentOk) {
-    return (
-      <>
-        <header className="hero premium-hero"><div className="eyebrow">PoC / Beta</div><h1>銘柄整理ダッシュボード</h1><p className="hero-lead">PoC検証用ツールとしての利用同意が必要です。</p></header>
-        <PocConsentNotice userId={userId} returnPath={returnPath} />
-      </>
-    );
-  }
   let data: { run: any; rows: ResultRow[]; marketEnv?: MarketEnv };
   let errorMessage = '';
 

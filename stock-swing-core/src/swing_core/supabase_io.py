@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 from supabase import create_client
+from .analyzer import SCORING_VERSION
 
 
 def get_client():
@@ -25,7 +26,7 @@ def fetch_watchlist(client, user_id: str) -> list[dict[str, Any]]:
 
 
 def create_run(client, user_id: str) -> str:
-    res = client.table("analysis_runs").insert({"user_id": user_id, "status": "running"}).execute()
+    res = client.table("analysis_runs").insert({"user_id": user_id, "status": "running", "score_version": SCORING_VERSION}).execute()
     return res.data[0]["id"]
 
 
@@ -41,4 +42,4 @@ def finish_run(client, run_id: str, status: str = "success", error_message: str 
 
 def upsert_results(client, rows: list[dict[str, Any]]) -> None:
     if rows:
-        client.table("analysis_results").insert(rows).execute()
+        client.table("analysis_results").upsert(rows, on_conflict="run_id,code").execute()

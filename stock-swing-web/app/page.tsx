@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation';
+import { currentAppUser } from '../lib/auth';
 
 type HomeSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -19,5 +20,23 @@ export default async function Home({ searchParams }: { searchParams?: HomeSearch
     redirect(`/u/${encodeURIComponent(targetUserId)}?${params.toString()}`);
   }
 
-  return <main className="hero"><div className="eyebrow">Swing Technical Service</div><h1>Stock Swing Dashboard</h1><p className="meta">/u/u001?user=p098&amp;key=発行キー でPoC用ダッシュボードを表示します。トップページ経由の場合は /?target=u001&amp;user=p098&amp;key=発行キー を利用できます。</p></main>;
+  const signedIn = await currentAppUser();
+  if (signedIn) redirect(`/u/${encodeURIComponent(signedIn.id)}`);
+  const error = firstParam(query.error);
+  return (
+    <main className="auth-shell">
+      <section className="auth-card">
+        <div className="eyebrow">Swing Technical Service</div>
+        <h1>Stock Swing Dashboard</h1>
+        <p className="meta">登録銘柄を、既定の26条件とイベント情報で整理します。</p>
+        {error ? <p className="alert">メールアドレスまたはパスワードを確認してください。</p> : null}
+        <form action="/api/auth/login" method="post" className="auth-form">
+          <label>メールアドレス<input className="input" type="email" name="email" autoComplete="email" required /></label>
+          <label>パスワード<input className="input" type="password" name="password" autoComplete="current-password" required /></label>
+          <button className="btn" type="submit">ログイン</button>
+        </form>
+        <p className="disclaimer">本サービスは売買推奨ではありません。表示値は定義済み条件への一致状況です。</p>
+      </section>
+    </main>
+  );
 }

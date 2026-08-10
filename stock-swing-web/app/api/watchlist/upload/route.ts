@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
+import { apiAppUser } from '../../../../lib/auth';
 
 function normalizeCode(raw: unknown) {
   const value = String(raw ?? '').trim().toUpperCase().replace('.T', '');
@@ -14,17 +15,18 @@ function normalizeKey(raw: unknown) {
 export async function POST(req: Request) {
   const body = await req.json();
   const userId = String(body.userId || '').trim();
-  const adminKey = normalizeKey(body.adminKey);
   const rows = Array.isArray(body.rows) ? body.rows : [];
 
-  if (!userId || !adminKey) {
+  const actor = await apiAppUser();
+  if (!actor) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
+  if (!userId || (actor.id !== userId && actor.role !== 'admin')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const supabase = supabaseAdmin();
   const user = await supabase
     .from('app_users')
-    .select('id,display_name,max_watchlist_count,admin_key,status')
+    .select('id,display_name,max_watchlist_count,status')
     .eq('id', userId)
     .single();
 
@@ -33,11 +35,6 @@ export async function POST(req: Request) {
   }
   if (user.data.status !== 'active') {
     return NextResponse.json({ error: `user is not active: ${userId}` }, { status: 403 });
-  }
-
-  const expectedKey = normalizeKey(user.data.admin_key || process.env.ADMIN_UPLOAD_KEY || '');
-  if (!expectedKey || adminKey !== expectedKey) {
-    return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
 
   const seen = new Set<string>();

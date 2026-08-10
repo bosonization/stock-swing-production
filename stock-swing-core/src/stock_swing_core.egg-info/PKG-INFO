@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: stock-swing-core
+Version: 0.1.0
+Summary: Swing trading technical screening MVP
+Requires-Python: >=3.11
+Requires-Dist: pandas>=2.2.0
+Requires-Dist: numpy>=1.26.0
+Requires-Dist: yfinance>=0.2.54
+Requires-Dist: PyYAML>=6.0.1
+Requires-Dist: requests>=2.31.0
+Requires-Dist: supabase>=2.10.0

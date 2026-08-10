@@ -1,0 +1,40 @@
+name: Stock Swing Analysis
+
+on:
+  workflow_dispatch:
+    inputs:
+      user_id:
+        description: User ID (blank runs every active user)
+        required: false
+        type: string
+  schedule:
+    - cron: '30 7 * * 1-5'
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: stock-swing-core
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: stock-swing-core/requirements.txt
+      - run: pip install -r requirements.txt && pip install -e .
+      - name: Run analysis
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          JQUANTS_REFRESH_TOKEN: ${{ secrets.JQUANTS_REFRESH_TOKEN }}
+          ENABLE_DIVIDEND_METRICS: ${{ vars.ENABLE_DIVIDEND_METRICS || 'false' }}
+          REQUESTED_USER_ID: ${{ inputs.user_id }}
+        run: |
+          if [ -n "$REQUESTED_USER_ID" ]; then
+            python -m swing_core.cli run-user --user-id "$REQUESTED_USER_ID"
+          else
+            python -m swing_core.cli run-all
+          fi

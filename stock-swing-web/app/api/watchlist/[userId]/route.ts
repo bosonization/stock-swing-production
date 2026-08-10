@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
+import { apiAppUser } from '../../../../lib/auth';
 
 export async function GET(_req: Request, { params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
+  const actor = await apiAppUser();
+  if (!actor) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (actor.id !== userId && actor.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   const supabase = supabaseAdmin();
 
   const user = await supabase

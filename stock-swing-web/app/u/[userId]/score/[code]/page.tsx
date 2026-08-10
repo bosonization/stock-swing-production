@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { supabaseAdmin } from '../../../../../lib/supabaseServer';
+import { authorizeUserId } from '../../../../../lib/auth';
 
 type ResultRow = {
   id: string;
@@ -193,7 +194,8 @@ function ScoreCategoryHistoryTable({ metrics, isAdmin }: { metrics: Record<strin
 
 export default async function ScoreDetail({ params }: { params: Promise<{ userId: string; code: string }> }) {
   const { userId, code } = await params;
-  const isAdmin = userId === ADMIN_USER_ID;
+  const signedIn = await authorizeUserId(userId);
+  const isAdmin = signedIn.role === 'admin';
 
   if (!isAdmin) {
     return (

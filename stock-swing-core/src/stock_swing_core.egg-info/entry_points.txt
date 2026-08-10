@@ -1,0 +1,2 @@
+[console_scripts]
+stock-swing = swing_core.cli:main

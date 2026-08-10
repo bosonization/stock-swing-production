@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
+import { apiAppUser } from '../../../../lib/auth';
 
 function normalizeKey(raw: unknown) {
   return String(raw ?? '').trim();
@@ -14,16 +15,14 @@ export async function POST(req: Request) {
   }
 
   const userId = String(body.userId || '').trim();
-  const adminKey = normalizeKey(body.adminKey);
-
-  if (!userId || !adminKey) {
-    return NextResponse.json({ error: 'unauthorized: userId/adminKey is required' }, { status: 401 });
-  }
+  const actor = await apiAppUser();
+  if (!actor) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  if (!userId || (actor.id !== userId && actor.role !== 'admin')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
 
   const supabase = supabaseAdmin();
   const user = await supabase
     .from('app_users')
-    .select('id,admin_key,status')
+    .select('id,status')
     .eq('id', userId)
     .single();
 
@@ -32,11 +31,6 @@ export async function POST(req: Request) {
   }
   if (user.data.status !== 'active') {
     return NextResponse.json({ error: `user is not active: ${userId}` }, { status: 403 });
-  }
-
-  const expectedKey = normalizeKey(user.data.admin_key || process.env.ADMIN_UPLOAD_KEY || '');
-  if (!expectedKey || adminKey !== expectedKey) {
-    return NextResponse.json({ error: 'unauthorized: admin key mismatch' }, { status: 401 });
   }
 
   const token = process.env.GITHUB_ACTIONS_TOKEN || process.env.GITHUB_TOKEN_FOR_DISPATCH;
@@ -72,7 +66,7 @@ export async function POST(req: Request) {
     }, { status: 500 });
   }
 
-  await supabase.from('app_event_logs').insert({ user_id: userId, event_type: 'condition_analysis_requested', event_version: 'poc_concept_v1', payload: { owner, repo, workflow, ref }, created_at: new Date().toISOString() }).then(() => null);
+  await supabase.from('app_event_logs').insert({ user_id: userId, actor_id: actor.auth_user_id, event_type: 'condition_analysis_requested', event_version: 'production_v1', payload: { owner, repo, workflow, ref }, created_at: new Date().toISOString() }).then(() => null);
 
   return NextResponse.json({
     ok: true,
