@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { currentAppUser } from '../lib/auth';
+import Link from 'next/link';
 
 type HomeSearchParams = Promise<Record<string, string | string[] | undefined>>;
 
@@ -35,6 +36,7 @@ export default async function Home({ searchParams }: { searchParams?: HomeSearch
           <label>パスワード<input className="input" type="password" name="password" autoComplete="current-password" required /></label>
           <button className="btn" type="submit">ログイン</button>
         </form>
+        <div className="auth-help"><Link href="/forgot-password">パスワードを忘れた方</Link></div>
         <p className="disclaimer">本サービスは売買推奨ではありません。表示値は定義済み条件への一致状況です。</p>
       </section>
     </main>

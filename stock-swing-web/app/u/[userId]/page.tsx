@@ -681,7 +681,11 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
           <p className="disclaimer">表示される銘柄群は、PoC検証用のサンプル銘柄またはユーザー登録銘柄です。売買推奨銘柄ではありません。</p>
           <p className="disclaimer">条件整理点は、あらかじめ定めた確認条件への一致状況を数値化したものであり、売買判断、将来の値上がり可能性、投資成果を示すものではありません。</p>
           <p className="disclaimer">本ツールは外部データソースから取得した情報を利用しています。データの正確性、完全性、即時性、継続提供を保証するものではありません。</p>
-          <div className="footer-links"><Link className="btn" href={`/u/${userId}/admin`}>登録銘柄CSV更新ページへ</Link></div>
+          <div className="footer-links">
+            <Link className="btn" href={`/u/${userId}/admin`}>登録銘柄CSV更新ページへ</Link>
+            <Link className="btn" href={`/u/${userId}/account`}>パスワード変更</Link>
+            <form action="/api/auth/logout" method="post"><button className="btn" type="submit">ログアウト</button></form>
+          </div>
         </section>
       </main>
     </>
