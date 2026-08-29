@@ -383,7 +383,7 @@ function formatJst(value: any) {
   if (!value) return '未実行';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return new Intl.DateTimeFormat('ja-JP', {
+  const formatted = new Intl.DateTimeFormat('ja-JP', {
     timeZone: 'Asia/Tokyo',
     year: 'numeric',
     month: 'numeric',
@@ -391,7 +391,16 @@ function formatJst(value: any) {
     hour: '2-digit',
     minute: '2-digit',
     hour12: false,
-  }).format(date) + ' JST';
+  }).format(date);
+  return `${formatted}（日本時間）`;
+}
+
+function userDisplayName(user: { display_name?: string | null; email?: string | null }) {
+  const displayName = String(user.display_name || '').trim();
+  const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(displayName);
+  if (displayName && !looksLikeUuid) return displayName;
+  const emailName = String(user.email || '').split('@')[0]?.trim();
+  return emailName || '利用者';
 }
 
 function formatMd(value: any) {
@@ -594,6 +603,7 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
   const query = searchParams ? await searchParams : {};
   const signedIn = await authorizeUserId(userId);
   const isAdmin = signedIn.role === 'admin';
+  const displayName = userDisplayName(signedIn);
 
   const returnQuery = new URLSearchParams();
   const queryUser = Array.isArray(query.user) ? query.user[0] : query.user;
@@ -629,7 +639,7 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
         <div className="eyebrow">Premium Swing Screening {isAdmin ? ' / Admin' : ''}</div>
         <h1>銘柄整理ダッシュボード</h1>
         <p className="hero-lead">登録銘柄について、テクニカル条件とイベント情報を機械的に整理します。</p>
-        <p className="meta">ユーザ: {userId} / 最終更新: {lastUpdated} / 毎日16:30 JST頃から更新開始</p>
+        <p className="meta">利用者名: {displayName} / 最終更新: {lastUpdated} / 毎日16:30（日本時間）頃から更新開始</p>
       </header>
       <main className="wrap premium-wrap">
         <section className="section poc-access-notice">
