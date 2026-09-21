@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { supabaseAdmin } from '../../../../../lib/supabaseServer';
 import { authorizeUserId } from '../../../../../lib/auth';
+import { hasRequiredTermsConsent } from '../../../../../lib/terms';
 
 type ResultRow = {
   id: string;
@@ -195,6 +197,7 @@ function ScoreCategoryHistoryTable({ metrics, isAdmin }: { metrics: Record<strin
 export default async function ScoreDetail({ params }: { params: Promise<{ userId: string; code: string }> }) {
   const { userId, code } = await params;
   const signedIn = await authorizeUserId(userId);
+  if (!(await hasRequiredTermsConsent(signedIn.id))) redirect(`/u/${encodeURIComponent(signedIn.id)}`);
   const isAdmin = signedIn.role === 'admin';
 
   if (!isAdmin) {

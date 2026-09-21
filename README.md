@@ -44,3 +44,7 @@ PoCの登録銘柄は、利用者ごとに管理画面へCSV貼り付けまた�
 - DBはRLSを有効にし、分析バッチだけがservice roleで結果を書き込みます。
 - service role keyとGitHub tokenはサーバー専用です。ブラウザへ公開しません。
 - 旧PoCのURLキーと平文管理キーは本格版の認証には使用しません。
+
+## 運営管理と規約同意
+
+管理者は `/admin/operations` で会員状態、規約同意、分析稼働状況、操作履歴を確認できます。反映と運用の手順は `docs/operations_admin_and_terms_setup.md` を参照してください。

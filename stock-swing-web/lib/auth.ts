@@ -27,6 +27,12 @@ export async function requireAppUser() {
   return user;
 }
 
+export async function requireAdmin() {
+  const user = await requireAppUser();
+  if (user.role !== 'admin') redirect(`/u/${encodeURIComponent(user.id)}`);
+  return user;
+}
+
 export async function authorizeUserId(userId: string) {
   const user = await requireAppUser();
   if (user.id !== userId && user.role !== 'admin') redirect(`/u/${encodeURIComponent(user.id)}`);

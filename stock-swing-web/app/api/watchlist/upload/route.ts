@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
 import { apiAppUser } from '../../../../lib/auth';
+import { hasRequiredTermsConsent } from '../../../../lib/terms';
 
 function normalizeCode(raw: unknown) {
   const value = String(raw ?? '').trim().toUpperCase().replace('.T', '');
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   }
   if (!userId || (actor.id !== userId && actor.role !== 'admin')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!(await hasRequiredTermsConsent(actor.id))) return NextResponse.json({ error: 'terms_consent_required' }, { status: 428 });
 
   const supabase = supabaseAdmin();
   const user = await supabase

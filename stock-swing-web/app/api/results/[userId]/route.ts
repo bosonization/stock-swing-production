@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
 import { apiAppUser } from '../../../../lib/auth';
+import { hasRequiredTermsConsent } from '../../../../lib/terms';
 
 const FORBIDDEN_TAG_WORDS = ['損切り', '利確', '目標株価', 'エントリー', '推奨', '買い候補', '急騰候補', '有望株'];
 const FORBIDDEN_METRIC_KEYS = new Set(['stop_loss_reference', 'stop_loss_distance_pct', 'take_profit_20pct', 'rr_stop_candidate', 'rr_target_candidate', 'rr2_entry_price', 'target_price']);
@@ -22,6 +23,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ userId:
   const actor = await apiAppUser();
   if (!actor) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
   if (actor.id !== userId && actor.role !== 'admin') return NextResponse.json({ error: 'forbidden' }, { status: 403 });
+  if (!(await hasRequiredTermsConsent(actor.id))) return NextResponse.json({ error: 'terms_consent_required' }, { status: 428 });
   const supabase = supabaseAdmin();
 
   const runs = await supabase

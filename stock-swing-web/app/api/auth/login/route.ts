@@ -18,6 +18,18 @@ export async function POST(req: Request) {
     return NextResponse.redirect(new URL('/?error=inactive_user', req.url), 303);
   }
 
+  const loggedInAt = new Date().toISOString();
+  await Promise.all([
+    supabase.from('app_users').update({ last_login_at: loggedInAt }).eq('id', appUser.data.id),
+    supabase.from('app_event_logs').insert({
+      user_id: appUser.data.id,
+      actor_id: result.data.user.id,
+      event_type: 'auth.login',
+      event_version: 'production_v1',
+      payload: { logged_in_at: loggedInAt },
+    }),
+  ]);
+
   const response = NextResponse.redirect(new URL(`/u/${encodeURIComponent(appUser.data.id)}`, req.url), 303);
   const secure = process.env.NODE_ENV === 'production';
   response.cookies.set(ACCESS_COOKIE, result.data.session.access_token, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: result.data.session.expires_in });

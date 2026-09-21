@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '../../../lib/supabaseServer';
 import { authorizeUserId } from '../../../lib/auth';
+import { getRequiredTerms, type TermsDocument } from '../../../lib/terms';
 import Link from 'next/link';
 
 type ResultRow = {
@@ -46,7 +47,6 @@ type MarketEnv = {
 type StatusKey = 'WATCH_PRIORITY' | 'EARNINGS_CAUTION' | 'EARNINGS_EXCLUDE' | 'OUT_OF_SCOPE' | 'WATCH_LIST';
 
 const ADMIN_USER_ID = 'takashimasaakiadmin';
-const POC_CONSENT_VERSION = 'poc_terms_v1';
 
 const STATUS_LABEL_PUBLIC: Record<StatusKey, string> = {
   WATCH_PRIORITY: '条件一致銘柄',
@@ -65,35 +65,19 @@ const STATUS_LABEL_ADMIN: Record<StatusKey, string> = {
 };
 
 
-async function hasPocConsent(userId: string) {
-  const supabase = supabaseAdmin();
-  const consent = await supabase
-    .from('user_consents')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('consent_type', 'poc_terms')
-    .eq('version', POC_CONSENT_VERSION)
-    .limit(1);
-  if (consent.error) return false;
-  return (consent.data || []).length > 0;
-}
-
-function PocConsentNotice({ userId, returnPath }: { userId: string; returnPath: string }) {
+function TermsConsentNotice({ userId, document }: { userId: string; document: TermsDocument }) {
   return (
     <main className="wrap premium-wrap">
       <section className="section consent-box">
-        <h1>PoC利用同意</h1>
-        <p>本ツールは、株価・出来高等の公開情報をもとに、あらかじめ定めたテクニカル条件への一致状況を機械的に整理するPoC検証用ツールです。</p>
-        <p>特定銘柄の取得、売却、保有を推奨するものではありません。</p>
-        <p>損切り、利確、目標株価、売買タイミングは提示しません。</p>
-        <p>表示される条件整理点、ラベル、並び順は、将来の値上がり、利益獲得可能性、投資成果を示すものではありません。</p>
-        <p>投資判断は利用者ご自身の責任で行ってください。</p>
-        <form action="/api/consents/poc" method="POST" className="consent-form">
+        <div className="eyebrow">Terms Agreement</div>
+        <h1>{document.title}</h1>
+        <p className="terms-version">版: {document.version}</p>
+        <div className="terms-body">{document.body}</div>
+        <form action="/api/consents/terms" method="POST" className="consent-form">
           <input type="hidden" name="userId" value={userId} />
-          <input type="hidden" name="version" value={POC_CONSENT_VERSION} />
-          <input type="hidden" name="returnPath" value={returnPath} />
-          <label className="consent-check"><input type="checkbox" name="agreed" value="yes" required /> 上記内容を確認し、PoC検証用ツールとして利用することに同意します。</label>
-          <button className="btn" type="submit">同意して利用する</button>
+          <input type="hidden" name="documentId" value={document.id} />
+          <label className="consent-check"><input type="checkbox" name="agreed" value="yes" required /> 上記の利用規約・注意事項を確認し、同意します。</label>
+          <button className="btn" type="submit">同意して利用を開始</button>
         </form>
       </section>
     </main>
@@ -598,19 +582,16 @@ function Section({ title, subtitle, rows, userId, isAdmin }: { title: string; su
   );
 }
 
-export default async function Dashboard({ params, searchParams }: { params: Promise<{ userId: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+export default async function Dashboard({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = await params;
-  const query = searchParams ? await searchParams : {};
   const signedIn = await authorizeUserId(userId);
   const isAdmin = signedIn.role === 'admin';
   const displayName = userDisplayName(signedIn);
 
-  const returnQuery = new URLSearchParams();
-  const queryUser = Array.isArray(query.user) ? query.user[0] : query.user;
-  const queryKey = Array.isArray(query.key) ? query.key[0] : query.key;
-  if (queryUser) returnQuery.set('user', queryUser);
-  if (queryKey) returnQuery.set('key', queryKey);
-  const returnPath = `/u/${encodeURIComponent(userId)}${returnQuery.toString() ? `?${returnQuery.toString()}` : ''}`;
+  const requiredTerms = await getRequiredTerms(signedIn.id);
+  if (!requiredTerms.agreed) {
+    return <TermsConsentNotice userId={signedIn.id} document={requiredTerms.document} />;
+  }
 
   let data: { run: any; rows: ResultRow[]; marketEnv?: MarketEnv };
   let errorMessage = '';
@@ -693,6 +674,7 @@ export default async function Dashboard({ params, searchParams }: { params: Prom
           <p className="disclaimer">本ツールは外部データソースから取得した情報を利用しています。データの正確性、完全性、即時性、継続提供を保証するものではありません。</p>
           <div className="footer-links">
             <Link className="btn" href={`/u/${userId}/admin`}>登録銘柄CSV更新ページへ</Link>
+            {isAdmin ? <Link className="btn" href="/admin/operations">運営管理画面</Link> : null}
             <Link className="btn" href={`/u/${userId}/account`}>パスワード変更</Link>
             <form action="/api/auth/logout" method="post"><button className="btn" type="submit">ログアウト</button></form>
           </div>
