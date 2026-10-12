@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     }),
   ]);
 
-  const response = NextResponse.redirect(new URL(`/u/${encodeURIComponent(appUser.data.id)}`, req.url), 303);
+  const response = NextResponse.redirect(new URL(`/u/${encodeURIComponent(appUser.data.id)}/home`, req.url), 303);
   const secure = process.env.NODE_ENV === 'production';
   response.cookies.set(ACCESS_COOKIE, result.data.session.access_token, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: result.data.session.expires_in });
   response.cookies.set(REFRESH_COOKIE, result.data.session.refresh_token, { httpOnly: true, sameSite: 'lax', secure, path: '/', maxAge: 60 * 60 * 24 * 30 });

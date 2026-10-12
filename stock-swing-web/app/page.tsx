@@ -22,14 +22,14 @@ export default async function Home({ searchParams }: { searchParams?: HomeSearch
   }
 
   const signedIn = await currentAppUser();
-  if (signedIn) redirect(`/u/${encodeURIComponent(signedIn.id)}`);
+  if (signedIn) redirect(`/u/${encodeURIComponent(signedIn.id)}/home`);
   const error = firstParam(query.error);
   return (
     <main className="auth-shell">
       <section className="auth-card">
-        <div className="eyebrow">Swing Technical Service</div>
-        <h1>Stock Swing Dashboard</h1>
-        <p className="meta">登録銘柄を、既定の26条件とイベント情報で整理します。</p>
+        <div className="eyebrow dark-eyebrow">Learning Community</div>
+        <h1>企業を読むノート部</h1>
+        <p className="meta">企業情報を学び、記録し、月ごとに振り返る公式コミュニティです。</p>
         {error ? <p className="alert">メールアドレスまたはパスワードを確認してください。</p> : null}
         <form action="/api/auth/login" method="post" className="auth-form">
           <label>メールアドレス<input className="input" type="email" name="email" autoComplete="email" required /></label>
@@ -37,7 +37,7 @@ export default async function Home({ searchParams }: { searchParams?: HomeSearch
           <button className="btn" type="submit">ログイン</button>
         </form>
         <div className="auth-help"><Link href="/forgot-password">パスワードを忘れた方</Link></div>
-        <p className="disclaimer">本サービスは売買推奨ではありません。表示値は定義済み条件への一致状況です。</p>
+        <p className="disclaimer">本サービスは学習・記録・振り返りを支援するもので、特定銘柄の売買を推奨するものではありません。</p>
       </section>
     </main>
   );

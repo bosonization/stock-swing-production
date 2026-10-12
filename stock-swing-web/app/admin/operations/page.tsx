@@ -33,6 +33,11 @@ type TermsDocument = {
   is_active: boolean;
   published_at: string;
 };
+type FeatureEntitlement = {
+  user_id: string;
+  feature_key: string;
+  enabled: boolean;
+};
 
 function firstParam(value?: string | string[]) {
   return Array.isArray(value) ? String(value[0] || '') : String(value || '');
@@ -71,20 +76,22 @@ export default async function OperationsPage({ searchParams }: { searchParams?: 
   const error = firstParam(query.error);
   const supabase = supabaseAdmin();
 
-  const [usersResult, summariesResult, termsResult, logsResult] = await Promise.all([
+  const [usersResult, summariesResult, termsResult, logsResult, entitlementsResult] = await Promise.all([
     supabase.from('app_users').select('id,auth_user_id,display_name,email,plan,role,status,max_watchlist_count,created_at,last_login_at').order('created_at'),
     supabase.from('user_operations_summary').select('user_id,active_watchlist_count,analysis_status,analysis_started_at,analysis_finished_at,analysis_error_message,active_terms_agreed_at'),
     supabase.from('terms_documents').select('id,terms_type,version,title,body,is_active,published_at').eq('terms_type', 'service_terms').order('published_at', { ascending: false }),
     supabase.from('app_event_logs').select('id,user_id,actor_id,event_type,event_version,payload,created_at').order('created_at', { ascending: false }).limit(30),
+    supabase.from('feature_entitlements').select('user_id,feature_key,enabled').eq('feature_key', 'stock_swing_tool'),
   ]);
 
-  const firstError = [usersResult.error, summariesResult.error, termsResult.error, logsResult.error].find(Boolean);
+  const firstError = [usersResult.error, summariesResult.error, termsResult.error, logsResult.error, entitlementsResult.error].find(Boolean);
   if (firstError) throw new Error(`運営データを読み込めません: ${firstError?.message}`);
 
   const users = (usersResult.data || []) as AppUser[];
   const terms = (termsResult.data || []) as TermsDocument[];
   const activeTerms = terms.find((item) => item.is_active) || null;
   const summaries = new Map(((summariesResult.data || []) as OperationsSummary[]).map((row) => [row.user_id, row]));
+  const toolAccess = new Map(((entitlementsResult.data || []) as FeatureEntitlement[]).map((row) => [row.user_id, row.enabled]));
   const actorNames = new Map(users.map((user) => [user.auth_user_id, user.display_name || user.email || user.id]));
   const activeCount = users.filter((user) => user.status === 'active').length;
   const suspendedCount = users.filter((user) => user.status === 'suspended').length;
@@ -118,12 +125,13 @@ export default async function OperationsPage({ searchParams }: { searchParams?: 
           </div>
           <div className="operations-table-wrap">
             <table className="operations-table">
-              <thead><tr><th>会員</th><th>区分</th><th>状態</th><th>最終ログイン</th><th>登録銘柄</th><th>最新分析</th><th>規約同意</th><th>操作</th></tr></thead>
+              <thead><tr><th>会員</th><th>区分</th><th>状態</th><th>最終ログイン</th><th>登録銘柄</th><th>最新分析</th><th>規約同意</th><th>ツール</th><th>操作</th></tr></thead>
               <tbody>
                 {users.map((user) => {
                   const summary = summaries.get(user.id);
                   const agreedAt = summary?.active_terms_agreed_at;
                   const isSelf = user.id === admin.id;
+                  const hasToolAccess = toolAccess.get(user.id) === true;
                   return (
                     <tr key={user.id}>
                       <td><b>{user.display_name || '名前未設定'}</b><small>{user.email || user.id}</small></td>
@@ -133,7 +141,8 @@ export default async function OperationsPage({ searchParams }: { searchParams?: 
                       <td>{summary?.active_watchlist_count || 0} / {user.max_watchlist_count}</td>
                       <td><span className={`ops-run ${summary?.analysis_status || 'none'}`}>{runLabel(summary?.analysis_status || undefined)}</span><small>{formatJst(summary?.analysis_finished_at || summary?.analysis_started_at)}</small>{summary?.analysis_error_message ? <small className="ops-error">{summary.analysis_error_message}</small> : null}</td>
                       <td>{agreedAt ? <><span className="ops-consent ok">同意済み</span><small>{formatJst(agreedAt)}</small></> : <span className="ops-consent pending">未同意</span>}</td>
-                      <td><div className="operations-actions"><Link className="mini-btn" href={`/u/${encodeURIComponent(user.id)}`}>表示</Link>{!isSelf && user.status !== 'closed' ? <form action={`/api/admin/users/${encodeURIComponent(user.id)}`} method="post"><input type="hidden" name="status" value={user.status === 'active' ? 'suspended' : 'active'} /><button className={`mini-btn ${user.status === 'active' ? 'danger-button' : 'success-button'}`} type="submit">{user.status === 'active' ? '停止' : '再開'}</button></form> : null}</div></td>
+                      <td><form action={`/api/admin/users/${encodeURIComponent(user.id)}/entitlements`} method="post"><input type="hidden" name="featureKey" value="stock_swing_tool" /><input type="hidden" name="enabled" value={hasToolAccess ? 'false' : 'true'} /><button className={`mini-btn ${hasToolAccess ? 'danger-button' : 'success-button'}`} type="submit">{hasToolAccess ? '停止' : '有効化'}</button></form></td>
+                      <td><div className="operations-actions"><Link className="mini-btn" href={`/u/${encodeURIComponent(user.id)}`}>ツール表示</Link>{!isSelf && user.status !== 'closed' ? <form action={`/api/admin/users/${encodeURIComponent(user.id)}`} method="post"><input type="hidden" name="status" value={user.status === 'active' ? 'suspended' : 'active'} /><button className={`mini-btn ${user.status === 'active' ? 'danger-button' : 'success-button'}`} type="submit">{user.status === 'active' ? '停止' : '再開'}</button></form> : null}</div></td>
                     </tr>
                   );
                 })}
@@ -170,7 +179,7 @@ export default async function OperationsPage({ searchParams }: { searchParams?: 
           <div className="operations-table-wrap"><table className="operations-table compact"><thead><tr><th>日時</th><th>操作</th><th>対象</th><th>実行者</th></tr></thead><tbody>{(logsResult.data || []).map((log: any) => <tr key={log.id}><td>{formatJst(log.created_at)}</td><td>{log.event_type}<small>{log.event_version}</small></td><td>{log.user_id || '—'}</td><td>{actorNames.get(log.actor_id) || log.actor_id || 'システム'}</td></tr>)}</tbody></table></div>
         </section>
 
-        <div className="footer-links"><Link className="btn" href={`/u/${encodeURIComponent(admin.id)}`}>自分のダッシュボードへ</Link></div>
+        <div className="footer-links"><Link className="btn" href={`/u/${encodeURIComponent(admin.id)}/home`}>コミュニティへ</Link><Link className="btn" href="/admin/community">コミュニティ管理へ</Link></div>
       </main>
     </>
   );

@@ -2,6 +2,7 @@ import { supabaseAdmin } from '../../../lib/supabaseServer';
 import { authorizeUserId } from '../../../lib/auth';
 import { getRequiredTerms, type TermsDocument } from '../../../lib/terms';
 import { shikihoStockUrl } from '../../../lib/stockLinks';
+import { hasFeatureEntitlement, STOCK_SWING_FEATURE } from '../../../lib/community';
 import Link from 'next/link';
 
 type ResultRow = {
@@ -595,6 +596,19 @@ export default async function Dashboard({ params }: { params: Promise<{ userId: 
     return <TermsConsentNotice userId={signedIn.id} document={requiredTerms.document} />;
   }
 
+  if (!isAdmin && !(await hasFeatureEntitlement(userId, STOCK_SWING_FEATURE))) {
+    return (
+      <main className="wrap premium-wrap">
+        <section className="section tool-unavailable">
+          <div className="eyebrow dark-eyebrow">Optional Tool</div>
+          <h1>銘柄整理ツール</h1>
+          <p>現在、このアカウントでは銘柄整理ツールを利用できません。コミュニティの教材、開催予定、公式サポートは引き続き利用できます。</p>
+          <Link className="btn" href={`/u/${signedIn.id}/home`}>コミュニティへ戻る</Link>
+        </section>
+      </main>
+    );
+  }
+
   let data: { run: any; rows: ResultRow[]; marketEnv?: MarketEnv };
   let errorMessage = '';
 
@@ -619,6 +633,7 @@ export default async function Dashboard({ params }: { params: Promise<{ userId: 
   return (
     <>
       <header className="hero premium-hero">
+        <Link className="back-to-community" href={`/u/${signedIn.id}/home`}>← コミュニティへ戻る</Link>
         <div className="eyebrow">Premium Swing Screening {isAdmin ? ' / Admin' : ''}</div>
         <h1>銘柄整理ダッシュボード</h1>
         <p className="hero-lead">登録銘柄について、テクニカル条件とイベント情報を機械的に整理します。</p>
@@ -675,6 +690,7 @@ export default async function Dashboard({ params }: { params: Promise<{ userId: 
           <p className="disclaimer">条件整理点は、あらかじめ定めた確認条件への一致状況を数値化したものであり、売買判断、将来の値上がり可能性、投資成果を示すものではありません。</p>
           <p className="disclaimer">本ツールは外部データソースから取得した情報を利用しています。データの正確性、完全性、即時性、継続提供を保証するものではありません。</p>
           <div className="footer-links">
+            <Link className="btn" href={`/u/${signedIn.id}/home`}>コミュニティホーム</Link>
             <Link className="btn" href={`/u/${userId}/admin`}>登録銘柄CSV更新ページへ</Link>
             {isAdmin ? <Link className="btn" href="/admin/operations">運営管理画面</Link> : null}
             <Link className="btn" href={`/u/${userId}/account`}>パスワード変更</Link>

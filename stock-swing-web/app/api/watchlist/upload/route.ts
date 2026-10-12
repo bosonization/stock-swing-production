@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabaseAdmin } from '../../../../lib/supabaseServer';
 import { apiAppUser } from '../../../../lib/auth';
 import { hasRequiredTermsConsent } from '../../../../lib/terms';
+import { hasFeatureEntitlement, STOCK_SWING_FEATURE } from '../../../../lib/community';
 
 function normalizeCode(raw: unknown) {
   const value = String(raw ?? '').trim().toUpperCase().replace('.T', '');
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   }
   if (!userId || (actor.id !== userId && actor.role !== 'admin')) return NextResponse.json({ error: 'forbidden' }, { status: 403 });
   if (!(await hasRequiredTermsConsent(actor.id))) return NextResponse.json({ error: 'terms_consent_required' }, { status: 428 });
+  if (actor.role !== 'admin' && !(await hasFeatureEntitlement(userId, STOCK_SWING_FEATURE))) return NextResponse.json({ error: 'tool_disabled' }, { status: 403 });
 
   const supabase = supabaseAdmin();
   const user = await supabase

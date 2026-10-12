@@ -11,6 +11,7 @@ export async function POST(req: Request) {
   const form = await req.formData();
   const userId = String(form.get('userId') || '').trim();
   const documentId = String(form.get('documentId') || '').trim();
+  const requestedReturnTo = String(form.get('returnTo') || '').trim();
   const agreed = form.get('agreed') === 'yes';
   if (!userId || !documentId || !agreed || actor.id !== userId) {
     return NextResponse.json({ error: 'invalid consent request' }, { status: 400 });
@@ -52,6 +53,9 @@ export async function POST(req: Request) {
     payload: { document_id: document.data.id, consent_type: document.data.terms_type, agreed_at: agreedAt },
   });
 
-  return NextResponse.redirect(new URL(`/u/${encodeURIComponent(userId)}`, req.url), 303);
+  const communityPath = `/u/${encodeURIComponent(userId)}/home`;
+  const toolPath = `/u/${encodeURIComponent(userId)}`;
+  const returnTo = requestedReturnTo === communityPath || requestedReturnTo === toolPath ? requestedReturnTo : communityPath;
+  return NextResponse.redirect(new URL(returnTo, req.url), 303);
 }
 
