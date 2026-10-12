@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '../../../lib/supabaseServer';
 import { authorizeUserId } from '../../../lib/auth';
 import { getRequiredTerms, type TermsDocument } from '../../../lib/terms';
+import { shikihoStockUrl } from '../../../lib/stockLinks';
 import Link from 'next/link';
 
 type ResultRow = {
@@ -568,6 +569,7 @@ function StockRow({ row, userId, isAdmin }: { row: ResultRow; userId: string; is
       <div className="stock-actions">
         {isAdmin ? <Link className="mini-btn" href={`/u/${userId}/score/${row.code}`}>詳細</Link> : null}
         <a className="mini-btn kabutan" href={kabutanUrl(row)} target="_blank" rel="noreferrer">株探</a>
+        <a className="mini-btn shikiho" href={shikihoStockUrl(row.code)} target="_blank" rel="noreferrer" title="会社四季報オンラインを開く">四季報</a>
       </div>
     </article>
   );

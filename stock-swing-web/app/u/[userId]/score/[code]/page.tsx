@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { supabaseAdmin } from '../../../../../lib/supabaseServer';
 import { authorizeUserId } from '../../../../../lib/auth';
 import { hasRequiredTermsConsent } from '../../../../../lib/terms';
+import { shikihoStockUrl } from '../../../../../lib/stockLinks';
 
 type ResultRow = {
   id: string;
@@ -238,6 +239,7 @@ export default async function ScoreDetail({ params }: { params: Promise<{ userId
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
           <Link className="btn" href={`/u/${userId}`}>銘柄整理画面へ戻る</Link>
           {row?.kabutan_url ? <a className="btn" href={row.kabutan_url} target="_blank" rel="noreferrer">株探</a> : null}
+          {row ? <a className="btn shikiho" href={shikihoStockUrl(row.code)} target="_blank" rel="noreferrer" title="会社四季報オンラインを開く">四季報</a> : null}
         </div>
         {errorMessage ? <div className="alert">エラー: {errorMessage}</div> : null}
         {row ? (
